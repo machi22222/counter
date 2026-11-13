@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <!-- Sicherheitsregeln: nur eigene Dateien, kein Inline-Code, keine fremden Server -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <!-- iOS: als eigenständige App vom Home-Bildschirm starten -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Zähler">
+  <!-- Verhindert, dass iOS große Zahlen als Telefonnummer verlinkt -->
+  <meta name="format-detection" content="telephone=no">
+  <title>Zähler</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header class="bar">
+      <div class="notices">
+        <button id="update" class="pill pill-accent" type="button" hidden>Update verfügbar – neu laden</button>
+        <p id="storage-warning" class="warning" role="status" hidden>Speichern nicht möglich – der Stand geht beim Schließen verloren.</p>
+      </div>
+      <button id="reset" class="pill" type="button" aria-label="Zähler auf 0 zurücksetzen">Zurücksetzen</button>
+    </header>
+
+    <div id="undo" class="undo" hidden>
+      <p class="undo-text">
+        <strong role="status">Zurückgesetzt</strong>
+        <span id="undo-prev" class="muted"></span>
+      </p>
+      <span id="undo-secs" class="undo-secs muted" aria-hidden="true"></span>
+      <button id="undo-btn" class="undo-btn" type="button">Rückgängig</button>
+      <div class="undo-track" aria-hidden="true"><div id="undo-bar" class="undo-bar"></div></div>
+    </div>
+
+    <section class="display" aria-label="Zählerstand">
+      <output id="count" class="count" aria-live="polite" aria-atomic="true">0</output>
+    </section>
+
+    <section class="steps">
+      <p id="steps-label" class="label">Schrittgröße</p>
+      <div class="segments" role="group" aria-labelledby="steps-label">
+        <button class="seg" type="button" data-step="1" aria-label="Schrittgröße 1">1</button>
+        <button class="seg" type="button" data-step="2" aria-label="Schrittgröße 2">2</button>
+        <button class="seg" type="button" data-step="5" aria-label="Schrittgröße 5">5</button>
+        <button class="seg" type="button" data-step="10" aria-label="Schrittgröße 10">10</button>
+        <button id="seg-custom" class="seg" type="button" aria-expanded="false" aria-controls="custom-form">Eigene</button>
+      </div>
+      <form id="custom-form" class="custom" hidden novalidate>
+        <label for="custom-input">Eigene Schrittgröße (1 bis 10.000)</label>
+        <div class="custom-row">
+          <input id="custom-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="custom-error">
+          <button class="ok" type="submit">Übernehmen</button>
+        </div>
+        <p id="custom-error" class="error" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="pad">
+      <button id="minus" class="btn btn-minus" type="button" aria-label="Um 1 verringern"></button>
+      <button id="plus" class="btn btn-plus" type="button" aria-label="Um 1 erhöhen"></button>
+    </section>
+  </main>
+</body>
+</html>
