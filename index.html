@@ -28,6 +28,11 @@
     <header class="bar">
       <div class="notices">
         <button id="update" class="pill pill-accent" type="button" hidden>Update verfügbar – neu laden</button>
+        <button id="install-open" class="pill pill-ghost" type="button" aria-haspopup="dialog" hidden>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>
+          Als App nutzen
+        </button>
+        <p id="installed-msg" class="success" role="status" hidden>Installiert! Starte den Zähler ab jetzt über das neue Symbol.</p>
         <p id="storage-warning" class="warning" role="status" hidden>Speichern nicht möglich – der Stand geht beim Schließen verloren.</p>
       </div>
       <button id="reset" class="pill" type="button" aria-label="Zähler auf 0 zurücksetzen">Zurücksetzen</button>
@@ -71,5 +76,39 @@
       <button id="plus" class="btn btn-plus" type="button" aria-label="Um 1 erhöhen"></button>
     </section>
   </main>
+
+  <!-- Anleitung „Als App nutzen“: Inhalt füllt app.js passend zu Handy und Browser -->
+  <dialog id="install" class="sheet" aria-labelledby="install-title">
+    <div class="sheet-body">
+      <div class="sheet-head">
+        <img src="icons/icon-180.png" alt="" width="52" height="52">
+        <!-- autofocus: Fenster startet oben beim Titel, nicht unten beim ersten Knopf -->
+        <h2 id="install-title" tabindex="-1" autofocus>Zähler als App nutzen</h2>
+      </div>
+      <p id="install-lead"></p>
+      <h3 id="install-browser" class="label"></h3>
+      <ol id="install-steps" class="guide"></ol>
+      <p id="install-tip" class="tip" hidden></p>
+      <div id="install-copy-row" class="copy-row" hidden>
+        <output id="install-url" class="url"></output>
+        <button id="install-copy" class="secondary" type="button">Adresse kopieren</button>
+      </div>
+      <p id="install-note" class="tip" hidden></p>
+      <div class="sheet-actions">
+        <button id="install-now" class="primary" type="button" hidden>Jetzt installieren</button>
+        <button id="install-close" class="secondary" type="button">Schließen</button>
+      </div>
+      <p class="muted sheet-foot">Du findest diese Anleitung jederzeit oben links unter <strong>Als App nutzen</strong>.</p>
+    </div>
+  </dialog>
+
+  <!-- Symbole für die Anleitungen (werden von app.js kopiert) -->
+  <div id="icon-set" hidden>
+    <svg data-icon="teilen" class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M8 7l4-4 4 4M8 10H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1"/></svg>
+    <svg data-icon="punkte" class="ico ico-fill" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    <svg data-icon="dreipunkte" class="ico ico-fill" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+    <svg data-icon="menue" class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    <svg data-icon="plus" class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>
+  </div>
 </body>
 </html>

@@ -82,3 +82,22 @@ Wer deinen GitHub-Account kontrolliert, kann den Code der App ändern. Dein iPho
 - Wertebereich 0 bis 999.999.999. Ein Schritt über die Grenze hinaus wird auf die Grenze begrenzt (z. B. 3 − 5 = 0).
 - Reset setzt sofort auf 0. 10 Sekunden lang kann man rückgängig machen, auch nach Schließen oder Neuladen der App. Wird in dieser Zeit + oder − gedrückt, stellt „Rückgängig“ trotzdem den Wert **vor** dem Reset wieder her.
 - Gespeichert wird in `localStorage` unter dem Schlüssel `zaehler-app` im Format `{ v: 1, count, step, undo }`.
+
+## Hinweis „Als App nutzen“
+
+- Erscheint nur auf **Handys im Browser**, nicht in der installierten App, nicht auf Tablets oder Computern.
+- Beim **ersten Besuch** öffnet sich die Anleitung einmal von selbst. Danach ist sie über den Knopf **„Als App nutzen“** oben links erreichbar.
+- Die Anleitung passt sich an Handy und Browser an:
+
+  | Gerät | Browser | Anleitung |
+  |---|---|---|
+  | iPhone | Safari | Teilen → Zum Home-Bildschirm |
+  | iPhone | Chrome | Teilen in der Adressleiste, sonst Safari |
+  | iPhone | Firefox, Edge, Apps wie Instagram usw. | In Safari öffnen (mit „Adresse kopieren“) |
+  | Android | Browser bietet Installation an | Knopf **„Jetzt installieren“** (ein Tipp) |
+  | Android | Chrome, Samsung Internet, Firefox | eigene Schritt-Anleitung |
+  | Android | andere Browser | allgemeine Anleitung |
+  | Android | Apps wie Instagram, WhatsApp | Im Browser öffnen |
+
+- Die Texte stehen in `app.js` unter `GUIDES`. `*fett*` markiert Knopf-Namen, `{teilen}`, `{punkte}`, `{dreipunkte}`, `{menue}` und `{plus}` fügen Symbole ein.
+- Gemerkt wird nur, ob der Hinweis schon gezeigt wurde (`localStorage`-Schlüssel `zaehler-hinweis`).

@@ -114,6 +114,16 @@ button:focus-visible, input:focus-visible {
   font-size: 15px;
   font-weight: 600;
 }
+.pill-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 6px;
+  background: transparent;
+  color: var(--accent-text);
+}
+.pill-ghost .ico { width: 22px; height: 22px; }
+.success { margin: 0; font-size: 14px; font-weight: 600; }
 .pill-accent {
   flex-shrink: 1;
   padding: 6px 14px;
@@ -271,6 +281,123 @@ button:focus-visible, input:focus-visible {
 @keyframes drop-in {
   from { transform: translateY(-120%); opacity: 0; }
 }
+
+/* ---------- Anleitung „Als App nutzen“ (Fenster von unten) ---------- */
+.sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  max-height: 88dvh;
+  margin: auto auto 0;                 /* unten andocken, waagerecht mittig */
+  padding: 0;
+  border: 0;
+  border-radius: 24px 24px 0 0;
+  background: var(--elevated);
+  color: var(--text);
+  box-shadow: 0 -8px 40px rgb(0 0 0 / 0.25);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sheet[open] { animation: sheet-up 0.28s ease-out; }
+.sheet::backdrop { background: rgb(0 0 0 / 0.45); }
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+}
+.sheet-body {
+  display: grid;
+  gap: 12px;
+  padding:
+    22px
+    max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+}
+.sheet p { margin: 0; }
+.sheet-head { display: flex; align-items: center; gap: 14px; }
+.sheet-head img { flex-shrink: 0; border-radius: 12px; }
+.sheet h2 { margin: 0; font-size: 22px; line-height: 1.2; outline: none; }
+.sheet .label { margin-top: 4px; }
+
+/* Nummerierte Schritte mit runden Ziffern */
+.guide {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.guide li {
+  position: relative;
+  min-height: 28px;
+  padding-left: 42px;
+  counter-increment: step;
+}
+.guide li::before {
+  content: counter(step);
+  position: absolute;
+  top: -2px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Symbole im Text sehen aus wie kleine Knöpfe */
+.chip {
+  display: inline-flex;
+  margin: 0 2px;
+  padding: 2px 5px;
+  border-radius: 7px;
+  background: var(--seg);
+  color: var(--accent-text);
+  vertical-align: -0.25em;
+}
+.ico {
+  width: 1.15em;
+  height: 1.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ico-fill { fill: currentColor; stroke: none; }
+
+.tip { font-size: 15px; color: var(--muted); }
+.copy-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 14px;
+  background: var(--seg);
+}
+.url {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.primary, .secondary {
+  min-height: 50px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-weight: 600;
+}
+.primary { background: var(--accent); color: var(--on-accent); }
+.secondary { background: var(--seg); color: var(--text); }
+.copy-row .secondary { min-height: 44px; background: var(--elevated); }
+.sheet-actions { display: grid; gap: 10px; margin-top: 4px; }
+.sheet-foot { font-size: 13px; text-align: center; }
 
 /* ---------- Querformat: Bedienung rechts, Zahl links ---------- */
 @media (orientation: landscape) and (max-height: 520px) {

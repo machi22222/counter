@@ -5,7 +5,7 @@
    WICHTIG: Bei jedem Update der App-Dateien VERSION um 1 erhöhen –
    nur dann erkennt das iPhone, dass es eine neue Version gibt.
    ============================================================ */
-const VERSION = 1;
+const VERSION = 2;
 const PREFIX = 'zaehler-';
 const CACHE = PREFIX + 'v' + VERSION;
 const FILES = [
