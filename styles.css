@@ -182,12 +182,15 @@ button:focus-visible, input:focus-visible {
   padding: 0 12px;
   border-radius: 12px;
   background: transparent;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: clamp(24px, 7.5vw, 34px);
+  font-weight: 700;
+  line-height: 1.15;
 }
 .name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name .ico { flex-shrink: 0; width: 18px; height: 18px; color: var(--accent-text); }
+.name .ico { flex-shrink: 0; width: 0.7em; height: 0.7em; color: var(--accent-text); }
 .name.unnamed { color: var(--muted); }
+
+.sub { margin: 4px 0 0; font-size: 17px; font-weight: 600; color: var(--muted); }
 
 .pager { display: grid; justify-items: center; gap: 2px; }
 .dots-row { display: flex; align-items: center; }
@@ -298,8 +301,9 @@ button:focus-visible, input:focus-visible {
   transition: transform 0.08s, background-color 0.25s, color 0.25s;
 }
 .btn:active:not(:disabled) { transform: scale(0.97); }
-.btn-minus { background: var(--surface); color: var(--accent-text); }
-.btn-plus { background: var(--accent); color: var(--on-accent); }
+/* Rolle: kleiner Knopf links, großer farbiger Knopf rechts (beim Runterzählen ist das „−“) */
+.btn-side { background: var(--surface); color: var(--accent-text); }
+.btn-main { background: var(--accent); color: var(--on-accent); }
 /* Symbole als Balken gezeichnet: exakt mittig, unabhängig von der Schrift */
 .btn::before, .btn-plus::after {
   content: "";
@@ -468,6 +472,9 @@ button:focus-visible, input:focus-visible {
 .copy-row .secondary { min-height: 44px; background: var(--elevated); }
 .sheet-actions { display: grid; gap: 10px; margin-top: 4px; }
 .sheet-foot { font-size: 13px; text-align: center; }
+.mode-seg { grid-template-columns: 1fr 1fr; }
+.start-row { display: grid; gap: 8px; }
+.note { padding: 10px 12px; border-radius: 12px; background: var(--seg); font-size: 15px; }
 .swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; padding: 0 4px; }
 .swatch {
   width: 100%;

@@ -81,14 +81,17 @@ Wer deinen GitHub-Account kontrolliert, kann den Code der App ändern. Dein iPho
 
 - Wertebereich 0 bis 999.999.999. Ein Schritt über die Grenze hinaus wird auf die Grenze begrenzt (z. B. 3 − 5 = 0).
 - Reset setzt sofort auf 0. 10 Sekunden lang kann man rückgängig machen, auch nach Schließen oder Neuladen der App. Wird in dieser Zeit + oder − gedrückt, stellt „Rückgängig“ trotzdem den Wert **vor** dem Reset wieder her.
-- Gespeichert wird in `localStorage` unter dem Schlüssel `zaehler-app` im Format `{ v: 2, current, counters: [{ id, name, count, step, color, fresh }], undo }`. Daten im alten Format `{ v: 1, count, step, undo }` werden beim Start automatisch übernommen.
+- Gespeichert wird in `localStorage` unter dem Schlüssel `zaehler-app` im Format `{ v: 2, current, counters: [{ id, name, count, step, color, mode, start, fresh }], undo }`. Daten im alten Format `{ v: 1, count, step, undo }` werden beim Start automatisch übernommen.
 
 ## Mehrere Zähler
 
 - **Wischen** über die große Zahl wechselt zum Nachbar-Zähler. Wischen über den Rand hinaus (ganz links oder ganz rechts) legt einen **neuen Zähler** an.
 - Ein neuer Zähler bleibt, sobald man zählt, die Schrittgröße ändert oder ihn benennt. Verlässt man ihn unbenutzt, verschwindet er wieder.
 - Die **Punkte** unter der Zahl zeigen alle Zähler in ihrer Farbe. Tippen springt hin, das **+** legt ebenfalls einen neuen an. Höchstens 10 Zähler.
-- **Tipp auf den Namen** öffnet „Zähler anpassen“: Name (Emojis über die Emoji-Taste der Tastatur), eine von 8 Farben, Zähler löschen.
+- **Tipp auf den Namen** öffnet „Zähler anpassen“: Name (Emojis über die Emoji-Taste der Tastatur), Modus, eine von 8 Farben, Zähler löschen.
+- **Modus Hochzählen** (Standard): Start bei 0, der große Knopf rechts ist „+“.
+- **Modus Runterzählen**: Startwert festlegen (1 bis 999.999.999), es geht bis 0 hinunter. Der große Knopf rechts ist dann „−“, der kleine links „+“ (höchstens bis zum Startwert). Unter der Zahl steht „von 50“, bei 0 „Geschafft! 🎉“. „Zurücksetzen“ springt zurück auf den Startwert.
+- Ein **Moduswechsel** startet den Zähler neu (runter: beim Startwert, hoch: bei 0) und lässt sich 10 Sekunden lang rückgängig machen.
 - **Löschen** lässt sich wie das Zurücksetzen 10 Sekunden lang rückgängig machen.
 - Jeder Zähler hat seine eigene Schrittgröße. Die Farben stehen in `styles.css` unter `[data-color="0"]` … `[data-color="7"]`.
 

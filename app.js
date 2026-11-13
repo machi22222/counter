@@ -47,14 +47,20 @@ const editSheet = $('edit');
 const editName = $('edit-name');
 const editDelete = $('edit-delete');
 const swatches = document.querySelectorAll('.swatch');
+const modeBtns = document.querySelectorAll('.seg[data-mode]');
+const editStart = $('edit-start');
+const editStartError = $('edit-start-error');
+const subEl = $('sub');
+const pad = plusBtn.parentElement;
 const storageWarning = $('storage-warning');
 const updateBtn = $('update');
 
 // ---------- Zustand ----------
-// counters: Liste der Zähler { id, name, count, step, color, fresh }
+// counters: Liste der Zähler { id, name, count, step, color, mode, start, fresh }
+//   mode = 'up' (hochzählen, ab 0) oder 'down' (runterzählen vom Startwert start bis 0)
 //   fresh = gerade per Wischen angelegt und noch unbenutzt → verschwindet beim Verlassen wieder
 // current: Position des angezeigten Zählers
-// undo: null oder { kind: 'reset' | 'delete', at: Zeitpunkt in ms, index: Position, counter: Kopie davor }
+// undo: null oder { kind: 'reset' | 'mode' | 'delete', at: Zeitpunkt in ms, index: Position, counter: Kopie davor }
 const state = { counters: [], current: 0, undo: null };
 const cur = () => state.counters[state.current];
 const nameOf = (c) => c.name.trim() || `Zähler ${c.id}`; // Platzhalter bleibt stabil, auch wenn Zähler davor dazukommen
@@ -68,12 +74,15 @@ function newCounter() {
     count: 0,
     step: 1,
     color: free ?? state.counters.length % COLORS,
+    mode: 'up',
+    start: 10,
     fresh: true,
   };
 }
 
 // ---------- Speichern & Laden ----------
 // Format (Version 2): { v: 2, current, counters: [...], undo }
+// (mode/start sind später dazugekommen; fehlen sie, gilt „Hochzählen“.)
 // Version 1 (nur ein Zähler: { v: 1, count, step, undo }) wird beim Laden übernommen.
 function load() {
   let raw;
@@ -105,7 +114,7 @@ function load() {
   }
   if (isIntIn(data.current, 0, state.counters.length - 1)) state.current = data.current;
   const u = data.undo;
-  if (u && typeof u === 'object' && (u.kind === 'reset' || u.kind === 'delete')
+  if (u && typeof u === 'object' && ['reset', 'mode', 'delete'].includes(u.kind)
       && Number.isSafeInteger(u.at) && isIntIn(u.index, 0, MAX_COUNTERS)) {
     const c = cleanCounter(u.counter);
     if (c) state.undo = { kind: u.kind, at: u.at, index: u.index, counter: c };
@@ -115,14 +124,22 @@ function load() {
 // Liefert eine geprüfte Kopie eines gespeicherten Zählers oder null
 function cleanCounter(c) {
   if (!c || typeof c !== 'object' || !isIntIn(c.id, 1, Number.MAX_SAFE_INTEGER)) return null;
-  return {
+  const clean = {
     id: c.id,
     name: typeof c.name === 'string' && c.name.length <= NAME_MAX ? c.name : '',
     count: isIntIn(c.count, MIN, MAX) ? c.count : 0,
     step: isIntIn(c.step, STEP_MIN, STEP_MAX) ? c.step : 1,
     color: isIntIn(c.color, 0, COLORS - 1) ? c.color : 0,
+    mode: 'up',
+    start: isIntIn(c.start, 1, MAX) ? c.start : 10,
     fresh: c.fresh === true,
   };
+  // Runterzählen nur mit gültigem Startwert; Stand nie über dem Startwert
+  if (c.mode === 'down' && isIntIn(c.start, 1, MAX)) {
+    clean.mode = 'down';
+    clean.count = Math.min(clean.count, clean.start);
+  }
+  return clean;
 }
 
 // Version 1 → 2: der bisherige Zähler wird der erste Zähler (inkl. laufendem Rückgängig)
@@ -152,6 +169,13 @@ function render() {
   document.documentElement.dataset.color = c.color; // färbt die ganze Bedienung ein
   renderCount();
   renderStep();
+  // Runterzählen: großer Knopf rechts (Daumen) wird „−“, kleiner links „+“
+  const down = c.mode === 'down';
+  const [side, main] = down ? [plusBtn, minusBtn] : [minusBtn, plusBtn];
+  side.classList.replace('btn-main', 'btn-side');
+  main.classList.replace('btn-side', 'btn-main');
+  if (pad.firstElementChild !== side) pad.prepend(side);
+  resetBtn.setAttribute('aria-label', down ? `Zähler auf Startwert ${fmt(c.start)} zurücksetzen` : 'Zähler auf 0 zurücksetzen');
   const name = nameOf(c);
   $('name-text').textContent = name;
   nameBtn.classList.toggle('unnamed', !c.name.trim());
@@ -184,9 +208,17 @@ function renderCount() {
     fitCount();
   }
   minusBtn.disabled = c.count <= MIN;
-  plusBtn.disabled = c.count >= MAX;
-  resetBtn.disabled = c.count === 0;
+  plusBtn.disabled = c.count >= upper(c);
+  resetBtn.disabled = c.count === base(c);
+  // Runterzählen: „von 50“ bzw. „Geschafft!“ unter der Zahl
+  const sub = c.mode === 'down' ? (c.count === 0 ? 'Geschafft! 🎉' : `von ${fmt(c.start)}`) : '';
+  if (subEl.textContent !== sub) subEl.textContent = sub;
+  subEl.hidden = !sub;
 }
+
+// Obergrenze und Ausgangswert je nach Modus
+const upper = (c) => (c.mode === 'down' ? c.start : MAX);
+const base = (c) => (c.mode === 'down' ? c.start : 0);
 
 // Lange Zahlen verkleinern, damit sie immer in eine Zeile passen
 // (Schrift skaliert nicht exakt proportional, daher notfalls pixelweise nachjustieren.)
@@ -218,7 +250,7 @@ function renderStep() {
 function change(direction) {
   const c = cur();
   // Begrenzen statt überlaufen: z. B. 3 − 5 ergibt 0, nicht −2
-  const next = Math.min(MAX, Math.max(MIN, c.count + direction * c.step));
+  const next = Math.min(upper(c), Math.max(MIN, c.count + direction * c.step));
   if (next === c.count) return;
   c.count = next;
   const wasFresh = c.fresh;
@@ -253,18 +285,23 @@ function showError(message) {
   else customInput.removeAttribute('aria-invalid');
 }
 
-// Eigene Schrittgröße prüfen: nur Ziffern, 1 bis 10.000 – sonst ablehnen und erklären
+// Prüft eine Eingabe: nur Ziffern im erlaubten Bereich. Liefert die Zahl oder einen Fehlertext.
+function parseWhole(raw, lo, hi) {
+  const text = raw.trim();
+  if (text === '') return 'Bitte gib eine Zahl ein.';
+  if (!/^[0-9]+$/.test(text)) return 'Nur ganze Zahlen – ohne Komma, Punkt, Minus oder Leerzeichen.';
+  const n = Number(text);
+  return isIntIn(n, lo, hi) ? n : `Erlaubt sind Werte von ${fmt(lo)} bis ${fmt(hi)}.`;
+}
+
+// Eigene Schrittgröße: ungültig → ablehnen und erklären
 function submitCustom(event) {
   event.preventDefault();
-  const raw = customInput.value.trim();
-  if (raw === '') {
-    showError('Bitte gib eine Zahl ein.');
-  } else if (!/^[0-9]+$/.test(raw)) {
-    showError('Nur ganze Zahlen – ohne Komma, Punkt, Minus oder Leerzeichen.');
-  } else if (!isIntIn(Number(raw), STEP_MIN, STEP_MAX)) {
-    showError('Erlaubt sind Werte von 1 bis 10.000.');
+  const result = parseWhole(customInput.value, STEP_MIN, STEP_MAX);
+  if (typeof result === 'string') {
+    showError(result);
   } else {
-    setStep(Number(raw));
+    setStep(result);
     customSeg.focus(); // schließt die Tastatur
     toggleCustom(false);
   }
@@ -372,13 +409,69 @@ display.addEventListener('click', (event) => {
   }
 }, true);
 
-// ---------- Name & Farbe ----------
+// ---------- Name, Farbe & Modus ----------
+// Name und Farbe gelten sofort. Modus/Startwert werden erst beim Schließen übernommen,
+// weil sie den Zähler neu starten (mit 10 Sekunden Rückgängig).
+let editing = null;    // der Zähler, der gerade bearbeitet wird
+let editMode = 'up';   // im Fenster gewählter Modus
+
 function openEdit() {
   if (busy) return; // nicht mitten in einer Wisch-Animation
-  editName.value = cur().name;
+  editing = cur();
+  editName.value = editing.name;
+  editMode = editing.mode;
+  editStart.value = editing.mode === 'down' ? String(editing.start) : '';
+  editStartError.textContent = '';
+  editStart.removeAttribute('aria-invalid');
   editDelete.hidden = state.counters.length < 2;
   renderSwatches();
+  renderEditMode();
   editSheet.showModal();
+}
+
+// Was beim Schließen passiert: null = nichts, sonst der neue Modus samt Startwert
+function pendingMode(c) {
+  if (editMode === 'up') return c.mode === 'up' ? null : { mode: 'up', start: c.start };
+  const start = parseWhole(editStart.value, 1, MAX);
+  if (typeof start !== 'number' || (c.mode === 'down' && c.start === start)) return null;
+  return { mode: 'down', start };
+}
+
+function renderEditMode() {
+  for (const b of modeBtns) b.setAttribute('aria-pressed', String(b.dataset.mode === editMode));
+  $('edit-start-row').hidden = editMode !== 'down';
+  $('edit-mode-note').hidden = !pendingMode(editing);
+}
+
+// „Fertig“: bei ungültigem Startwert nicht schließen, sondern den Fehler zeigen
+function finishEdit() {
+  const result = editMode === 'down' ? parseWhole(editStart.value, 1, MAX) : 0;
+  if (typeof result === 'string') {
+    editStartError.textContent = result;
+    editStart.setAttribute('aria-invalid', 'true');
+    editStart.focus();
+    return;
+  }
+  applyEdit(); // sofort übernehmen, nicht erst beim (verzögerten) Schließen-Ereignis
+  editSheet.close();
+}
+
+// Übernimmt die Bearbeitung genau einmal: Name ohne Leerzeichen am Rand, ggf. neuer Modus.
+// Moduswechsel startet den Zähler neu (runter: beim Startwert, hoch: bei 0) – 10 s rückgängig machbar.
+// Ungültiger Startwert (Fenster per Escape/Hintergrund geschlossen) → Modus bleibt, wie er war.
+function applyEdit() {
+  const c = editing;
+  editing = null;
+  if (!c || !state.counters.includes(c)) return; // z. B. gerade gelöscht
+  c.name = c.name.trim();
+  const next = pendingMode(c);
+  if (next) {
+    state.undo = { kind: 'mode', at: Date.now(), index: state.counters.indexOf(c), counter: { ...c } };
+    Object.assign(c, next, { count: next.mode === 'down' ? next.start : 0, fresh: false });
+  }
+  save();
+  render();
+  if (next) showUndo();
 }
 
 function renderSwatches() {
@@ -390,9 +483,9 @@ let frame = 0;
 
 function reset() {
   const c = cur();
-  if (c.count === 0) return; // nichts zu tun; schützt einen gesicherten Wert vor dem Überschreiben mit 0
+  if (c.count === base(c)) return; // nichts zu tun; schützt einen gesicherten Wert vor dem Überschreiben
   state.undo = { kind: 'reset', at: Date.now(), index: state.current, counter: { ...c } };
-  c.count = 0;
+  c.count = base(c); // hochzählen: 0, runterzählen: Startwert
   save(); // Wert + Zeitpunkt sind gespeichert → Rückgängig klappt auch nach Neuladen
   renderCount();
   showUndo();
@@ -415,8 +508,8 @@ function undoLeft() {
   return elapsed >= 0 && elapsed < UNDO_MS ? UNDO_MS - elapsed : 0;
 }
 
-// Reset: Wert vor dem Reset zurück. Löschen: Zähler an seine Stelle zurück.
-// In beiden Fällen springt die Anzeige zu diesem Zähler.
+// Reset/Moduswechsel: Stand, Modus und Startwert von vorher zurück.
+// Löschen: Zähler an seine Stelle zurück. Die Anzeige springt jeweils zu diesem Zähler.
 function undo() {
   if (busy) return; // nicht mitten in einer Wisch-Animation
   const u = state.undo;
@@ -430,7 +523,8 @@ function undo() {
     } else {
       const i = state.counters.findIndex((c) => c.id === u.counter.id);
       if (i >= 0) {
-        state.counters[i].count = u.counter.count;
+        const { count, mode, start } = u.counter;
+        Object.assign(state.counters[i], { count, mode, start });
         state.current = i;
       }
     }
@@ -450,7 +544,7 @@ function clearUndo() {
 function showUndo() {
   const u = state.undo;
   const deleted = u.kind === 'delete';
-  $('undo-title').textContent = deleted ? 'Gelöscht' : 'Zurückgesetzt';
+  $('undo-title').textContent = { reset: 'Zurückgesetzt', mode: 'Modus geändert', delete: 'Gelöscht' }[u.kind];
   $('undo-prev').textContent = `${nameOf(u.counter)} · ${deleted ? 'Stand' : 'vorher'} ${fmt(u.counter.count)}`;
   undoBox.hidden = false;
   cancelAnimationFrame(frame);
@@ -502,8 +596,24 @@ editName.addEventListener('input', () => {
   save();
   render();
 });
-editName.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') editSheet.close();
+for (const input of [editName, editStart]) {
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') finishEdit();
+  });
+}
+for (const b of modeBtns) {
+  b.addEventListener('click', () => {
+    editMode = b.dataset.mode;
+    renderEditMode();
+    if (editMode === 'down' && !editStart.value) editStart.focus();
+  });
+}
+editStart.addEventListener('input', () => {
+  const result = parseWhole(editStart.value, 1, MAX);
+  editStartError.textContent = typeof result === 'string' ? result : '';
+  if (typeof result === 'string') editStart.setAttribute('aria-invalid', 'true');
+  else editStart.removeAttribute('aria-invalid');
+  renderEditMode();
 });
 for (const s of swatches) {
   s.addEventListener('click', () => {
@@ -515,16 +625,13 @@ for (const s of swatches) {
     renderSwatches();
   });
 }
-$('edit-done').addEventListener('click', () => editSheet.close());
+$('edit-done').addEventListener('click', finishEdit);
 editDelete.addEventListener('click', () => {
+  editing = null; // gelöscht → beim Schließen nichts mehr übernehmen
   editSheet.close();
   removeCurrent();
 });
-editSheet.addEventListener('close', () => {
-  cur().name = cur().name.trim(); // Leerzeichen am Rand erst beim Schließen entfernen
-  save();
-  render();
-});
+editSheet.addEventListener('close', applyEdit); // Escape oder Tipp auf den Hintergrund
 // Fenster schließen sich auch per Tipp auf den abgedunkelten Hintergrund
 for (const dialog of document.querySelectorAll('dialog')) {
   dialog.addEventListener('click', (event) => {

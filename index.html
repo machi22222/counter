@@ -56,6 +56,7 @@
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>
         </button>
         <output id="count" class="count" aria-live="polite" aria-atomic="true">0</output>
+        <p id="sub" class="sub" aria-live="polite" hidden></p>
       </div>
       <nav class="pager" aria-label="Zähler">
         <div class="dots-row">
@@ -88,8 +89,8 @@
     </section>
 
     <section class="pad">
-      <button id="minus" class="btn btn-minus" type="button" aria-label="Um 1 verringern"></button>
-      <button id="plus" class="btn btn-plus" type="button" aria-label="Um 1 erhöhen"></button>
+      <button id="minus" class="btn btn-minus btn-side" type="button" aria-label="Um 1 verringern"></button>
+      <button id="plus" class="btn btn-plus btn-main" type="button" aria-label="Um 1 erhöhen"></button>
     </section>
   </main>
 
@@ -100,6 +101,18 @@
       <label for="edit-name" class="label">Name</label>
       <input id="edit-name" class="field" type="text" maxlength="40" autocomplete="off" enterkeyhint="done" placeholder="z. B. ☕ Kaffee" aria-describedby="edit-name-tip">
       <p id="edit-name-tip" class="tip">Symbole fügst du über die Emoji-Taste deiner Tastatur ein.</p>
+      <p id="edit-mode-label" class="label">Modus</p>
+      <div class="segments mode-seg" role="group" aria-labelledby="edit-mode-label">
+        <button class="seg" type="button" data-mode="up">Hochzählen</button>
+        <button class="seg" type="button" data-mode="down">Runterzählen</button>
+      </div>
+      <div id="edit-start-row" class="start-row" hidden>
+        <label for="edit-start" class="label">Startwert</label>
+        <input id="edit-start" class="field" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" placeholder="z. B. 50" aria-describedby="edit-start-tip edit-start-error">
+        <p id="edit-start-tip" class="tip">Der Zähler beginnt bei diesem Wert und zählt bis 0 herunter.</p>
+        <p id="edit-start-error" class="error" aria-live="polite"></p>
+      </div>
+      <p id="edit-mode-note" class="note" hidden>Beim Wechsel startet der Zähler neu. Du kannst das danach 10 Sekunden lang rückgängig machen.</p>
       <p id="edit-colors" class="label">Farbe</p>
       <div class="swatches" role="group" aria-labelledby="edit-colors">
         <button class="swatch" type="button" data-color="0" aria-label="Indigo"></button>
