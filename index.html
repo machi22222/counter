@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-color="0">
 <head>
   <meta charset="utf-8">
   <!-- Sicherheitsregeln: nur eigene Dateien, kein Inline-Code, keine fremden Server -->
@@ -40,7 +40,7 @@
 
     <div id="undo" class="undo" hidden>
       <p class="undo-text">
-        <strong role="status">Zurückgesetzt</strong>
+        <strong id="undo-title" role="status">Zurückgesetzt</strong>
         <span id="undo-prev" class="muted"></span>
       </p>
       <span id="undo-secs" class="undo-secs muted" aria-hidden="true"></span>
@@ -48,8 +48,24 @@
       <div class="undo-track" aria-hidden="true"><div id="undo-bar" class="undo-bar"></div></div>
     </div>
 
+    <!-- Zur Seite wischen wechselt den Zähler; über den Rand hinaus entsteht ein neuer -->
     <section class="display" aria-label="Zählerstand">
-      <output id="count" class="count" aria-live="polite" aria-atomic="true">0</output>
+      <div id="card" class="card">
+        <button id="name" class="name" type="button">
+          <span id="name-text" class="name-text"></span>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>
+        </button>
+        <output id="count" class="count" aria-live="polite" aria-atomic="true">0</output>
+      </div>
+      <nav class="pager" aria-label="Zähler">
+        <div class="dots-row">
+          <div id="dots" class="dots"></div>
+          <button id="add" class="add" type="button" aria-label="Neuen Zähler anlegen">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>
+          </button>
+        </div>
+        <p id="pager-hint" class="pager-hint"></p>
+      </nav>
     </section>
 
     <section class="steps">
@@ -64,7 +80,7 @@
       <form id="custom-form" class="custom" hidden novalidate>
         <label for="custom-input">Eigene Schrittgröße (1 bis 10.000)</label>
         <div class="custom-row">
-          <input id="custom-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="custom-error">
+          <input id="custom-input" class="field" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="custom-error">
           <button class="ok" type="submit">Übernehmen</button>
         </div>
         <p id="custom-error" class="error" aria-live="polite"></p>
@@ -76,6 +92,31 @@
       <button id="plus" class="btn btn-plus" type="button" aria-label="Um 1 erhöhen"></button>
     </section>
   </main>
+
+  <!-- Name & Farbe des angezeigten Zählers -->
+  <dialog id="edit" class="sheet" aria-labelledby="edit-title">
+    <div class="sheet-body">
+      <h2 id="edit-title" tabindex="-1" autofocus>Zähler anpassen</h2>
+      <label for="edit-name" class="label">Name</label>
+      <input id="edit-name" class="field" type="text" maxlength="40" autocomplete="off" enterkeyhint="done" placeholder="z. B. ☕ Kaffee" aria-describedby="edit-name-tip">
+      <p id="edit-name-tip" class="tip">Symbole fügst du über die Emoji-Taste deiner Tastatur ein.</p>
+      <p id="edit-colors" class="label">Farbe</p>
+      <div class="swatches" role="group" aria-labelledby="edit-colors">
+        <button class="swatch" type="button" data-color="0" aria-label="Indigo"></button>
+        <button class="swatch" type="button" data-color="1" aria-label="Blau"></button>
+        <button class="swatch" type="button" data-color="2" aria-label="Türkis"></button>
+        <button class="swatch" type="button" data-color="3" aria-label="Grün"></button>
+        <button class="swatch" type="button" data-color="4" aria-label="Orange"></button>
+        <button class="swatch" type="button" data-color="5" aria-label="Rot"></button>
+        <button class="swatch" type="button" data-color="6" aria-label="Pink"></button>
+        <button class="swatch" type="button" data-color="7" aria-label="Lila"></button>
+      </div>
+      <div class="sheet-actions">
+        <button id="edit-done" class="primary" type="button">Fertig</button>
+        <button id="edit-delete" class="danger" type="button">Zähler löschen</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Anleitung „Als App nutzen“: Inhalt füllt app.js passend zu Handy und Browser -->
   <dialog id="install" class="sheet" aria-labelledby="install-title">

@@ -8,8 +8,6 @@
   --seg: #e3e3e8;
   --text: #1c1c1e;
   --muted: #636366;
-  --accent: #5856d6;
-  --accent-text: #5856d6;
   --on-accent: #ffffff;
   --error: #c41e3a;
   --warn: #a14a00;
@@ -24,12 +22,34 @@
     --seg: #1c1c1e;
     --text: #f2f2f7;
     --muted: #a1a1a6;
-    --accent: #5e5ce6;
-    --accent-text: #a5a4ff;
     --error: #ff6b6b;
     --warn: #ffb340;
     --shadow: none;
   }
+}
+
+/* ---------- 8 Zählerfarben ----------
+   Gilt für <html> (aktueller Zähler) und für Punkte/Farbfelder mit eigenem data-color.
+   --accent = Fläche mit weißer Schrift, --accent-text = farbige Schrift auf Hintergrund.
+   Alle Paare erfüllen WCAG AA (geprüft für Hell und Dunkel). */
+[data-color="0"] { --accent: #5856d6; --accent-text: #5856d6; } /* Indigo */
+[data-color="1"] { --accent: #0066cc; --accent-text: #0066cc; } /* Blau */
+[data-color="2"] { --accent: #00777a; --accent-text: #00777a; } /* Türkis */
+[data-color="3"] { --accent: #1d7a33; --accent-text: #1d7a33; } /* Grün */
+[data-color="4"] { --accent: #b04a00; --accent-text: #b04a00; } /* Orange */
+[data-color="5"] { --accent: #c4262e; --accent-text: #c4262e; } /* Rot */
+[data-color="6"] { --accent: #c2185b; --accent-text: #c2185b; } /* Pink */
+[data-color="7"] { --accent: #8a3ab9; --accent-text: #8a3ab9; } /* Lila */
+
+@media (prefers-color-scheme: dark) {
+  [data-color="0"] { --accent: #5e5ce6; --accent-text: #a5a4ff; }
+  [data-color="1"] { --accent: #0a6fd6; --accent-text: #6cb6ff; }
+  [data-color="2"] { --accent: #00787b; --accent-text: #4fd6d0; }
+  [data-color="3"] { --accent: #1f7d36; --accent-text: #6bdc86; }
+  [data-color="4"] { --accent: #b34d00; --accent-text: #ffad5c; }
+  [data-color="5"] { --accent: #c62a32; --accent-text: #ff7b7b; }
+  [data-color="6"] { --accent: #c41c5e; --accent-text: #ff7eb3; }
+  [data-color="7"] { --accent: #8e3fbd; --accent-text: #d5a6ff; }
 }
 
 /* ---------- Grundlagen ---------- */
@@ -139,11 +159,60 @@ button:focus-visible, input:focus-visible {
 .display {
   grid-area: display;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  touch-action: pan-y;                 /* waagerechtes Wischen übernimmt app.js */
 }
+.card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 20px;
+  font-weight: 600;
+}
+.name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name .ico { flex-shrink: 0; width: 18px; height: 18px; color: var(--accent-text); }
+.name.unnamed { color: var(--muted); }
+
+.pager { display: grid; justify-items: center; gap: 2px; }
+.dots-row { display: flex; align-items: center; }
+.dots { display: flex; flex-wrap: wrap; justify-content: center; }
+.dot, .add {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+}
+.dot::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 5px;
+  background: var(--accent);
+  opacity: 0.45;
+  transition: width 0.2s, opacity 0.2s;
+}
+.dot[aria-current="true"]::before { width: 22px; opacity: 1; }
+.add { color: var(--muted); }
+.add .ico { width: 18px; height: 18px; }
+.pager-hint { margin: 0; min-height: 1.3em; font-size: 13px; color: var(--muted); text-align: center; }
 .count {
   display: inline-block;
   white-space: nowrap;                 /* nie umbrechen; app.js verkleinert bei Bedarf */
@@ -187,7 +256,7 @@ button:focus-visible, input:focus-visible {
 .custom { display: grid; gap: 6px; }
 .custom label { font-size: 15px; color: var(--muted); }
 .custom-row { display: flex; gap: 8px; }
-.custom input {
+.field {
   flex: 1;
   width: 100%;
   min-width: 0;
@@ -203,7 +272,7 @@ button:focus-visible, input:focus-visible {
   -webkit-user-select: text;
   user-select: text;
 }
-.custom input[aria-invalid="true"] { border-color: var(--error); }
+.field[aria-invalid="true"] { border-color: var(--error); }
 .ok {
   min-height: 48px;
   padding: 0 18px;
@@ -226,7 +295,7 @@ button:focus-visible, input:focus-visible {
   height: clamp(96px, 20vh, 168px);
   border-radius: 28px;
   box-shadow: var(--shadow);
-  transition: transform 0.08s;
+  transition: transform 0.08s, background-color 0.25s, color 0.25s;
 }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn-minus { background: var(--surface); color: var(--accent-text); }
@@ -265,6 +334,7 @@ button:focus-visible, input:focus-visible {
   animation: drop-in 0.22s ease-out;
 }
 .undo-text { flex: 1; min-width: 0; margin: 0; display: flex; flex-direction: column; }
+.undo-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .muted { color: var(--muted); font-size: 14px; }
 .undo-secs { font-size: 15px; font-variant-numeric: tabular-nums; }
 .undo-btn {
@@ -398,6 +468,17 @@ button:focus-visible, input:focus-visible {
 .copy-row .secondary { min-height: 44px; background: var(--elevated); }
 .sheet-actions { display: grid; gap: 10px; margin-top: 4px; }
 .sheet-foot { font-size: 13px; text-align: center; }
+.swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; padding: 0 4px; }
+.swatch {
+  width: 100%;
+  max-width: 44px;
+  aspect-ratio: 1;                     /* rund, passt in eine Reihe */
+  justify-self: center;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--elevated), 0 0 0 6px var(--accent); }
+.danger { min-height: 50px; background: transparent; color: var(--error); font-weight: 600; }
 
 /* ---------- Querformat: Bedienung rechts, Zahl links ---------- */
 @media (orientation: landscape) and (max-height: 520px) {

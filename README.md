@@ -81,7 +81,16 @@ Wer deinen GitHub-Account kontrolliert, kann den Code der App ändern. Dein iPho
 
 - Wertebereich 0 bis 999.999.999. Ein Schritt über die Grenze hinaus wird auf die Grenze begrenzt (z. B. 3 − 5 = 0).
 - Reset setzt sofort auf 0. 10 Sekunden lang kann man rückgängig machen, auch nach Schließen oder Neuladen der App. Wird in dieser Zeit + oder − gedrückt, stellt „Rückgängig“ trotzdem den Wert **vor** dem Reset wieder her.
-- Gespeichert wird in `localStorage` unter dem Schlüssel `zaehler-app` im Format `{ v: 1, count, step, undo }`.
+- Gespeichert wird in `localStorage` unter dem Schlüssel `zaehler-app` im Format `{ v: 2, current, counters: [{ id, name, count, step, color, fresh }], undo }`. Daten im alten Format `{ v: 1, count, step, undo }` werden beim Start automatisch übernommen.
+
+## Mehrere Zähler
+
+- **Wischen** über die große Zahl wechselt zum Nachbar-Zähler. Wischen über den Rand hinaus (ganz links oder ganz rechts) legt einen **neuen Zähler** an.
+- Ein neuer Zähler bleibt, sobald man zählt, die Schrittgröße ändert oder ihn benennt. Verlässt man ihn unbenutzt, verschwindet er wieder.
+- Die **Punkte** unter der Zahl zeigen alle Zähler in ihrer Farbe. Tippen springt hin, das **+** legt ebenfalls einen neuen an. Höchstens 10 Zähler.
+- **Tipp auf den Namen** öffnet „Zähler anpassen“: Name (Emojis über die Emoji-Taste der Tastatur), eine von 8 Farben, Zähler löschen.
+- **Löschen** lässt sich wie das Zurücksetzen 10 Sekunden lang rückgängig machen.
+- Jeder Zähler hat seine eigene Schrittgröße. Die Farben stehen in `styles.css` unter `[data-color="0"]` … `[data-color="7"]`.
 
 ## Hinweis „Als App nutzen“
 

@@ -15,6 +15,10 @@ const STEP_MIN = 1;
 const STEP_MAX = 10_000;
 const PRESETS = [1, 2, 5, 10];
 const UNDO_MS = 10_000;
+const MAX_COUNTERS = 10;
+const COLORS = 8;     // Farben stehen in styles.css unter [data-color="0"] … [data-color="7"]
+const NAME_MAX = 40;
+const SWIPE_PX = 60;  // so weit muss man wischen, damit der Zähler wechselt
 
 const fmt = new Intl.NumberFormat('de-DE').format;
 const isIntIn = (n, lo, hi) => Number.isSafeInteger(n) && n >= lo && n <= hi;
@@ -22,6 +26,12 @@ const isIntIn = (n, lo, hi) => Number.isSafeInteger(n) && n >= lo && n <= hi;
 // ---------- Elemente ----------
 const $ = (id) => document.getElementById(id);
 const countEl = $('count');
+const card = $('card');
+const display = card.parentElement;
+const nameBtn = $('name');
+const dotList = $('dots');
+const addBtn = $('add');
+const pagerHint = $('pager-hint');
 const minusBtn = $('minus');
 const plusBtn = $('plus');
 const resetBtn = $('reset');
@@ -31,18 +41,40 @@ const customForm = $('custom-form');
 const customInput = $('custom-input');
 const customError = $('custom-error');
 const undoBox = $('undo');
-const undoPrev = $('undo-prev');
 const undoSecs = $('undo-secs');
 const undoBar = $('undo-bar');
+const editSheet = $('edit');
+const editName = $('edit-name');
+const editDelete = $('edit-delete');
+const swatches = document.querySelectorAll('.swatch');
 const storageWarning = $('storage-warning');
 const updateBtn = $('update');
 
 // ---------- Zustand ----------
-// undo ist null oder { prev: Wert vor dem Reset, at: Zeitpunkt des Resets in ms }
-const state = { count: 0, step: 1, undo: null };
+// counters: Liste der Zähler { id, name, count, step, color, fresh }
+//   fresh = gerade per Wischen angelegt und noch unbenutzt → verschwindet beim Verlassen wieder
+// current: Position des angezeigten Zählers
+// undo: null oder { kind: 'reset' | 'delete', at: Zeitpunkt in ms, index: Position, counter: Kopie davor }
+const state = { counters: [], current: 0, undo: null };
+const cur = () => state.counters[state.current];
+const nameOf = (c) => c.name.trim() || `Zähler ${c.id}`; // Platzhalter bleibt stabil, auch wenn Zähler davor dazukommen
+
+function newCounter() {
+  const used = state.counters.map((c) => c.color);
+  const free = [...Array(COLORS).keys()].find((n) => !used.includes(n)); // erste noch freie Farbe
+  return {
+    id: Math.max(0, ...state.counters.map((c) => c.id)) + 1,
+    name: '',
+    count: 0,
+    step: 1,
+    color: free ?? state.counters.length % COLORS,
+    fresh: true,
+  };
+}
 
 // ---------- Speichern & Laden ----------
-// Format (Version 1): { v: 1, count, step, undo }
+// Format (Version 2): { v: 2, current, counters: [...], undo }
+// Version 1 (nur ein Zähler: { v: 1, count, step, undo }) wird beim Laden übernommen.
 function load() {
   let raw;
   try {
@@ -59,21 +91,55 @@ function load() {
   } catch {
     return; // kaputte Daten → Standardwerte
   }
-  // Unbekannte Version → Standardwerte. Spätere Formate würden hier migriert.
-  if (!data || typeof data !== 'object' || data.v !== 1) return;
+  if (data && data.v === 1) data = migrateV1(data);
+  if (!data || data.v !== 2 || !Array.isArray(data.counters)) return; // unbekannt → Standardwerte
 
-  // Jeder Wert wird einzeln geprüft; Ungültiges bleibt beim sicheren Standard.
-  if (isIntIn(data.count, MIN, MAX)) state.count = data.count;
-  if (isIntIn(data.step, STEP_MIN, STEP_MAX)) state.step = data.step;
-  const u = data.undo;
-  if (u && typeof u === 'object' && isIntIn(u.prev, MIN, MAX) && Number.isSafeInteger(u.at)) {
-    state.undo = { prev: u.prev, at: u.at };
+  // Jeder Zähler wird einzeln geprüft; Ungültiges fällt weg oder auf sichere Standardwerte zurück.
+  const seen = new Set();
+  for (const item of data.counters) {
+    const c = cleanCounter(item);
+    if (c && !seen.has(c.id) && state.counters.length < MAX_COUNTERS) {
+      seen.add(c.id);
+      state.counters.push(c);
+    }
   }
+  if (isIntIn(data.current, 0, state.counters.length - 1)) state.current = data.current;
+  const u = data.undo;
+  if (u && typeof u === 'object' && (u.kind === 'reset' || u.kind === 'delete')
+      && Number.isSafeInteger(u.at) && isIntIn(u.index, 0, MAX_COUNTERS)) {
+    const c = cleanCounter(u.counter);
+    if (c) state.undo = { kind: u.kind, at: u.at, index: u.index, counter: c };
+  }
+}
+
+// Liefert eine geprüfte Kopie eines gespeicherten Zählers oder null
+function cleanCounter(c) {
+  if (!c || typeof c !== 'object' || !isIntIn(c.id, 1, Number.MAX_SAFE_INTEGER)) return null;
+  return {
+    id: c.id,
+    name: typeof c.name === 'string' && c.name.length <= NAME_MAX ? c.name : '',
+    count: isIntIn(c.count, MIN, MAX) ? c.count : 0,
+    step: isIntIn(c.step, STEP_MIN, STEP_MAX) ? c.step : 1,
+    color: isIntIn(c.color, 0, COLORS - 1) ? c.color : 0,
+    fresh: c.fresh === true,
+  };
+}
+
+// Version 1 → 2: der bisherige Zähler wird der erste Zähler (inkl. laufendem Rückgängig)
+function migrateV1(d) {
+  const counter = { id: 1, name: '', count: d.count, step: d.step, color: 0 };
+  const u = d.undo;
+  return {
+    v: 2,
+    current: 0,
+    counters: [counter],
+    undo: u && typeof u === 'object' ? { kind: 'reset', at: u.at, index: 0, counter: { ...counter, count: u.prev } } : null,
+  };
 }
 
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ v: 1, count: state.count, step: state.step, undo: state.undo }));
+    localStorage.setItem(KEY, JSON.stringify({ v: 2, current: state.current, counters: state.counters, undo: state.undo }));
     storageWarning.hidden = true;
   } catch {
     storageWarning.hidden = false; // App läuft weiter, nur ohne Speichern
@@ -81,15 +147,45 @@ function save() {
 }
 
 // ---------- Anzeige ----------
+function render() {
+  const c = cur();
+  document.documentElement.dataset.color = c.color; // färbt die ganze Bedienung ein
+  renderCount();
+  renderStep();
+  const name = nameOf(c);
+  $('name-text').textContent = name;
+  nameBtn.classList.toggle('unnamed', !c.name.trim());
+  nameBtn.setAttribute('aria-label', `${name} – Name und Farbe ändern`);
+
+  // Punkte: einer pro Zähler in seiner Farbe; Tippen springt hin
+  const dotFocused = dotList.contains(document.activeElement);
+  dotList.replaceChildren(...state.counters.map((counter, i) => {
+    const dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'dot';
+    dot.dataset.color = counter.color;
+    dot.setAttribute('aria-label', nameOf(counter));
+    if (i === state.current) dot.setAttribute('aria-current', 'true');
+    dot.addEventListener('click', () => navigate(i));
+    return dot;
+  }));
+  if (dotFocused) dotList.children[state.current].focus();
+  addBtn.hidden = c.fresh || state.counters.length >= MAX_COUNTERS;
+  pagerHint.textContent = c.fresh ? 'Neuer Zähler – er bleibt, sobald du zählst oder ihn benennst.'
+    : state.counters.length === 1 ? 'Zur Seite wischen für einen weiteren Zähler'
+    : state.counters.length >= MAX_COUNTERS ? `Maximal ${MAX_COUNTERS} Zähler` : '';
+}
+
 function renderCount() {
-  const text = fmt(state.count);
+  const c = cur();
+  const text = fmt(c.count);
   if (countEl.textContent !== text) { // nur echte Änderungen vorlesen lassen
     countEl.textContent = text;
     fitCount();
   }
-  minusBtn.disabled = state.count <= MIN;
-  plusBtn.disabled = state.count >= MAX;
-  resetBtn.disabled = state.count === 0;
+  minusBtn.disabled = c.count <= MIN;
+  plusBtn.disabled = c.count >= MAX;
+  resetBtn.disabled = c.count === 0;
 }
 
 // Lange Zahlen verkleinern, damit sie immer in eine Zeile passen
@@ -105,7 +201,7 @@ function fitCount() {
 }
 
 function renderStep() {
-  const s = state.step;
+  const s = cur().step;
   for (const b of presetBtns) b.setAttribute('aria-pressed', String(Number(b.dataset.step) === s));
   const isCustom = !PRESETS.includes(s);
   customSeg.setAttribute('aria-pressed', String(isCustom));
@@ -120,26 +216,32 @@ function renderStep() {
 // bewusst unverändert. „Rückgängig“ stellt also auch nach weiteren Tipps den Wert
 // VOR dem Reset wieder her; die seit dem Reset gezählten Schritte werden dabei verworfen.
 function change(direction) {
+  const c = cur();
   // Begrenzen statt überlaufen: z. B. 3 − 5 ergibt 0, nicht −2
-  const next = Math.min(MAX, Math.max(MIN, state.count + direction * state.step));
-  if (next === state.count) return;
-  state.count = next;
+  const next = Math.min(MAX, Math.max(MIN, c.count + direction * c.step));
+  if (next === c.count) return;
+  c.count = next;
+  const wasFresh = c.fresh;
+  c.fresh = false; // benutzt → bleibt
   save();
-  renderCount();
+  if (wasFresh) render();
+  else renderCount();
 }
 
 // ---------- Schrittgröße ----------
 function setStep(n) {
-  state.step = n;
+  const c = cur();
+  c.step = n;
+  c.fresh = false;
   save();
-  renderStep();
+  render();
 }
 
 function toggleCustom(open) {
   customForm.hidden = !open;
   customSeg.setAttribute('aria-expanded', String(open));
   if (open) {
-    customInput.value = PRESETS.includes(state.step) ? '' : String(state.step);
+    customInput.value = PRESETS.includes(cur().step) ? '' : String(cur().step);
     showError('');
     customInput.focus();
   }
@@ -168,15 +270,141 @@ function submitCustom(event) {
   }
 }
 
-// ---------- Reset & Rückgängig ----------
+// ---------- Mehrere Zähler: wechseln, neu anlegen, aufräumen ----------
+// Ein unbenutzter neuer Zähler wird beim Verlassen wieder entfernt.
+function dropFresh() {
+  if (!cur().fresh || state.counters.length < 2) return false;
+  state.counters.splice(state.current, 1);
+  return true;
+}
+
+// target: Position des Ziels; -1 oder Anzahl = über den Rand → neuen Zähler anlegen
+function canGo(target) {
+  if (target === state.current) return false;
+  const outside = target < 0 || target >= state.counters.length;
+  // Kein neuer Zähler aus einem unbenutzten neuen heraus und nicht über das Maximum
+  return !(outside && (cur().fresh || state.counters.length >= MAX_COUNTERS));
+}
+
+function go(target) {
+  if (dropFresh() && target > state.current) target--;
+  if (target < 0 || target >= state.counters.length) {
+    target = target < 0 ? 0 : state.counters.length;
+    state.counters.splice(target, 0, newCounter());
+  }
+  state.current = target;
+  toggleCustom(false);
+  save();
+  render();
+}
+
+// Wechsel mit kurzer Wisch-Animation (bei „Bewegung reduzieren“ ohne)
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let busy = false;
+
+function navigate(target, fromX = 0) {
+  if (busy) return;
+  if (!canGo(target)) {
+    snapBack(fromX);
+    return;
+  }
+  if (reduceMotion.matches) {
+    go(target);
+    return;
+  }
+  busy = true;
+  const dir = target > state.current ? -1 : 1; // -1: Inhalt wandert nach links hinaus
+  const out = card.animate(
+    [{ transform: `translateX(${fromX}px)` }, { transform: `translateX(${dir * 100}%)`, opacity: 0 }],
+    { duration: 160, easing: 'ease-in', fill: 'forwards' },
+  );
+  out.onfinish = () => {
+    go(target);
+    out.cancel();
+    card.animate(
+      [{ transform: `translateX(${-dir * 60}%)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: 200, easing: 'ease-out' },
+    ).onfinish = () => { busy = false; };
+  };
+}
+
+function snapBack(fromX) {
+  if (fromX) card.animate([{ transform: `translateX(${fromX}px)` }, { transform: 'none' }], { duration: 180, easing: 'ease-out' });
+}
+
+// Wischgeste über dem Zählerbereich: die Zahl folgt dem Finger
+let drag = null;
+let swiped = false;
+
+display.addEventListener('pointerdown', (event) => {
+  swiped = false;
+  if (busy || !event.isPrimary) return;
+  drag = { id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, axis: '' };
+});
+display.addEventListener('pointermove', (event) => {
+  if (!drag || event.pointerId !== drag.id) return;
+  const dx = event.clientX - drag.x;
+  const dy = event.clientY - drag.y;
+  if (!drag.axis && Math.abs(dx) + Math.abs(dy) > 10) {
+    drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (drag.axis === 'x') display.setPointerCapture(event.pointerId);
+  }
+  if (drag.axis !== 'x') return;
+  drag.dx = dx;
+  card.style.transform = `translateX(${dx}px)`;
+});
+function endDrag(event) {
+  if (!drag || event.pointerId !== drag.id) return;
+  const { dx, axis } = drag;
+  drag = null;
+  if (axis !== 'x') return;
+  swiped = true; // den folgenden Klick (z. B. auf den Namen) nicht auslösen
+  card.style.transform = '';
+  if (event.type === 'pointerup' && Math.abs(dx) > SWIPE_PX) navigate(state.current + (dx < 0 ? 1 : -1), dx);
+  else snapBack(dx);
+}
+display.addEventListener('pointerup', endDrag);
+display.addEventListener('pointercancel', endDrag);
+display.addEventListener('click', (event) => {
+  if (swiped) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+}, true);
+
+// ---------- Name & Farbe ----------
+function openEdit() {
+  if (busy) return; // nicht mitten in einer Wisch-Animation
+  editName.value = cur().name;
+  editDelete.hidden = state.counters.length < 2;
+  renderSwatches();
+  editSheet.showModal();
+}
+
+function renderSwatches() {
+  for (const s of swatches) s.setAttribute('aria-pressed', String(Number(s.dataset.color) === cur().color));
+}
+
+// ---------- Reset, Löschen & Rückgängig ----------
 let frame = 0;
 
 function reset() {
-  if (state.count === 0) return; // nichts zu tun; schützt einen gesicherten Wert vor dem Überschreiben mit 0
-  state.undo = { prev: state.count, at: Date.now() };
-  state.count = 0;
+  const c = cur();
+  if (c.count === 0) return; // nichts zu tun; schützt einen gesicherten Wert vor dem Überschreiben mit 0
+  state.undo = { kind: 'reset', at: Date.now(), index: state.current, counter: { ...c } };
+  c.count = 0;
   save(); // Wert + Zeitpunkt sind gespeichert → Rückgängig klappt auch nach Neuladen
   renderCount();
+  showUndo();
+}
+
+function removeCurrent() {
+  if (state.counters.length < 2) return;
+  const [c] = state.counters.splice(state.current, 1);
+  state.undo = { kind: 'delete', at: Date.now(), index: state.current, counter: c };
+  state.current = Math.min(state.current, state.counters.length - 1);
+  save();
+  render();
   showUndo();
 }
 
@@ -187,10 +415,26 @@ function undoLeft() {
   return elapsed >= 0 && elapsed < UNDO_MS ? UNDO_MS - elapsed : 0;
 }
 
+// Reset: Wert vor dem Reset zurück. Löschen: Zähler an seine Stelle zurück.
+// In beiden Fällen springt die Anzeige zu diesem Zähler.
 function undo() {
+  if (busy) return; // nicht mitten in einer Wisch-Animation
+  const u = state.undo;
   if (undoLeft() > 0) {
-    state.count = state.undo.prev;
-    renderCount();
+    dropFresh();
+    state.current = Math.min(state.current, state.counters.length - 1);
+    if (u.kind === 'delete') {
+      const i = Math.min(u.index, state.counters.length);
+      state.counters.splice(i, 0, u.counter);
+      state.current = i;
+    } else {
+      const i = state.counters.findIndex((c) => c.id === u.counter.id);
+      if (i >= 0) {
+        state.counters[i].count = u.counter.count;
+        state.current = i;
+      }
+    }
+    render();
   }
   clearUndo();
 }
@@ -204,7 +448,10 @@ function clearUndo() {
 }
 
 function showUndo() {
-  undoPrev.textContent = 'vorher ' + fmt(state.undo.prev);
+  const u = state.undo;
+  const deleted = u.kind === 'delete';
+  $('undo-title').textContent = deleted ? 'Gelöscht' : 'Zurückgesetzt';
+  $('undo-prev').textContent = `${nameOf(u.counter)} · ${deleted ? 'Stand' : 'vorher'} ${fmt(u.counter.count)}`;
   undoBox.hidden = false;
   cancelAnimationFrame(frame);
   tick();
@@ -225,8 +472,10 @@ function tick() {
 
 // ---------- Start ----------
 load();
-renderCount();
-renderStep();
+if (!state.counters.length) {
+  state.counters.push({ ...newCounter(), fresh: false }); // der erste Zähler ist immer „echt“
+}
+render();
 if (undoLeft() > 0) showUndo();       // Neuladen innerhalb der 10 s → Rückgängig für die Restzeit
 else if (state.undo) clearUndo();     // abgelaufen → gesicherten Wert löschen
 
@@ -243,6 +492,46 @@ for (const b of presetBtns) {
 customSeg.addEventListener('click', () => toggleCustom(customForm.hidden));
 customForm.addEventListener('submit', submitCustom);
 customInput.addEventListener('input', () => showError(''));
+addBtn.addEventListener('click', () => navigate(state.counters.length));
+
+nameBtn.addEventListener('click', openEdit);
+editName.addEventListener('input', () => {
+  const c = cur();
+  c.name = editName.value;
+  c.fresh = false;
+  save();
+  render();
+});
+editName.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') editSheet.close();
+});
+for (const s of swatches) {
+  s.addEventListener('click', () => {
+    const c = cur();
+    c.color = Number(s.dataset.color);
+    c.fresh = false;
+    save();
+    render();
+    renderSwatches();
+  });
+}
+$('edit-done').addEventListener('click', () => editSheet.close());
+editDelete.addEventListener('click', () => {
+  editSheet.close();
+  removeCurrent();
+});
+editSheet.addEventListener('close', () => {
+  cur().name = cur().name.trim(); // Leerzeichen am Rand erst beim Schließen entfernen
+  save();
+  render();
+});
+// Fenster schließen sich auch per Tipp auf den abgedunkelten Hintergrund
+for (const dialog of document.querySelectorAll('dialog')) {
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+}
+
 window.addEventListener('resize', fitCount);
 // iOS zeigt den Drück-Effekt (:active) nur, wenn ein touchstart-Listener existiert
 document.addEventListener('touchstart', () => {}, { passive: true });
@@ -444,10 +733,6 @@ if (runsAsApp) {
 
   installOpen.addEventListener('click', openInstall);
   $('install-close').addEventListener('click', () => installSheet.close());
-  // Tipp auf den abgedunkelten Hintergrund schließt ebenfalls
-  installSheet.addEventListener('click', (event) => {
-    if (event.target === installSheet) installSheet.close();
-  });
 
   installCopy.addEventListener('click', () => {
     const done = (text) => { installCopy.textContent = text; };
